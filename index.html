@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeenDash</title>
+<style>
+:root{--bg:#22262c;--bg2:#2a2f37;--bg3:#323843;--line:#40474f;--tx:#d3d9e0;--dim:#8d98a5;--acc:#5b8db8;--acc2:#4a7aa3;
+--crit:#c2554f;--high:#c98a45;--med:#b8a948;--low:#5b8db8;--info:#7a8591;--ok:#6a9f6a}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--tx);font:13px/1.45 Verdana,Tahoma,"DejaVu Sans",sans-serif}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+header{background:linear-gradient(#323843,#2a2f37);border-bottom:1px solid #15181c;display:flex;align-items:center;gap:6px;padding:0 10px;height:38px;flex-wrap:wrap}
+header h1{font-size:15px;margin:0 14px 0 0;font-weight:bold;letter-spacing:.3px}
+nav a{display:inline-block;padding:11px 10px 10px;color:var(--dim);border-bottom:2px solid transparent;cursor:pointer}
+nav a.on{color:var(--tx);border-bottom-color:var(--acc)}
+.sp{flex:1}
+button,.btn,select,input[type=text],input[type=search],textarea{font:inherit;color:var(--tx)}
+button,.btn{background:linear-gradient(#3b424d,#30363f);border:1px solid #14171b;border-radius:3px;padding:3px 10px;cursor:pointer;box-shadow:inset 0 1px 0 #4a525e}
+button:hover,.btn:hover{background:linear-gradient(#444c58,#363d47)}
+button.pri{background:linear-gradient(#5b8db8,#4a7aa3);box-shadow:inset 0 1px 0 #7aa6cc}
+button.danger:hover{background:#7a3a36}
+select,input[type=text],input[type=search],textarea{background:#1b1f24;border:1px solid var(--line);border-radius:3px;padding:3px 6px}
+textarea{width:100%;resize:vertical;min-height:90px;font-family:Consolas,Menlo,monospace;font-size:12px}
+main{padding:10px;max-width:1500px;margin:0 auto}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:3px;margin-bottom:10px}
+.panel>h2{margin:0;padding:5px 9px;font-size:12px;background:linear-gradient(#343a44,#2d323b);border-bottom:1px solid var(--line)}
+.panel>div{padding:8px 9px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.stat{background:var(--bg2);border:1px solid var(--line);border-radius:3px;padding:6px 12px;min-width:100px}
+.stat b{display:block;font-size:20px}.stat span{color:var(--dim);font-size:11px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:900px){.grid{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;background:#2d323b;padding:4px 8px;border-bottom:1px solid var(--line);font-weight:bold;white-space:nowrap}
+th.s{cursor:pointer}td{padding:3px 8px;border-bottom:1px solid #30363e;vertical-align:top}
+tbody tr:hover{background:#2f353e}tr.cl{cursor:pointer}
+.tag{display:inline-block;padding:0 6px;border-radius:2px;font-size:11px;color:#fff}
+.p-critical{background:var(--crit)}.p-high{background:var(--high)}.p-medium{background:var(--med);color:#1b1d12}.p-low{background:var(--low)}.p-info{background:var(--info)}
+.chip{display:inline-block;background:#1b1f24;border:1px solid var(--line);border-radius:2px;padding:0 5px;margin:1px 2px 1px 0;font-size:11px;color:var(--dim)}
+.bar{display:flex;height:14px;border:1px solid var(--line);background:#1b1f24}.bar i{display:block}
+.bar2{height:8px;background:#1b1f24;border:1px solid var(--line);min-width:80px}.bar2 i{display:block;height:100%;background:var(--ok)}
+.tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+.dim{color:var(--dim)}.mono{font-family:Consolas,Menlo,monospace;font-size:12px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:2px 10px}.kv div:nth-child(odd){color:var(--dim)}
+.bd td:nth-child(2){text-align:right;width:50px;font-weight:bold}.neg{color:var(--ok)}
+.ck{display:block;padding:1px 0}.ck input{margin-right:6px}.ck.done span{color:var(--dim);text-decoration:line-through}
+#msg{position:fixed;right:10px;bottom:10px;max-width:520px;z-index:9}
+.m{background:#1b1f24;border:1px solid var(--line);border-left:3px solid var(--acc);padding:6px 10px;margin-top:6px;white-space:pre-wrap;cursor:pointer}.m.err{border-left-color:var(--crit)}
+.note{background:#2f3a2f;border:1px solid #455a45;padding:5px 9px;margin-bottom:10px;color:#b5c9b5;font-size:12px}
+.empty{text-align:center;padding:40px 10px;color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+ <h1>KeenDash</h1>
+ <nav id="nav"><a data-v="dash">Dashboard</a><a data-v="targets">Targets</a><a data-v="ips">IPs</a><a data-v="notes">Notes</a><a data-v="data">Import / Export</a></nav>
+ <span class="sp"></span><span class="dim" id="saved"></span>
+</header>
+<main id="main"></main>
+<div id="msg"></div>
+<input type="file" id="file" hidden multiple>
+
+<script>/* AUTO-GENERATED from dash.py by tests/extract_data.py - do not edit by hand */
+(function(root){root.KeenData={
+ "consts": {
+  "TECH_SCORES": {
+   "WordPress": 25,
+   "wpBakery": 8,
+   "WPML": 7,
+   "Elementor": 10,
+   "PHP": 5,
+   "MySQL": 5,
+   "Redis": 8,
+   "Apache": 3,
+   "Nginx": 2,
+   "IIS": 10,
+   "Microsoft ASP.NET": 8,
+   "Windows Server": 10,
+   "Cloudflare": 2,
+   "HubSpot": 8,
+   "Amazon S3": 12,
+   "Amazon CloudFront": 8,
+   "F5 BigIP": 20,
+   "Citrix": 15,
+   "Jenkins": 20,
+   "Grafana": 15,
+   "Zabbix": 15,
+   "SAP": 18,
+   "Harbor": 15,
+   "GitLab": 18,
+   "Tomcat": 10,
+   "Spring": 12,
+   "Django": 8,
+   "Flask": 8,
+   "Laravel": 10,
+   "Drupal": 12,
+   "Joomla": 12,
+   "Basic": 15
+  },
+  "HIGH_VALUE_KEYWORDS": [
+   "admin",
+   "api",
+   "auth",
+   "login",
+   "portal",
+   "dashboard",
+   "panel",
+   "internal",
+   "staging",
+   "dev",
+   "test",
+   "vpn",
+   "gateway",
+   "proxy",
+   "jenkins",
+   "gitlab",
+   "grafana",
+   "kibana",
+   "zabbix",
+   "exchange",
+   "owa",
+   "mail",
+   "smtp",
+   "ftp",
+   "citrix",
+   "sap",
+   "oracle",
+   "database",
+   "db",
+   "redis",
+   "mongo",
+   "elastic",
+   "kafka",
+   "docker",
+   "kubernetes",
+   "s3",
+   "bucket",
+   "cloud",
+   "aws",
+   "azure",
+   "gcp",
+   "payment",
+   "billing",
+   "checkout",
+   "token",
+   "secret",
+   "config",
+   "backup",
+   "swagger",
+   "docs",
+   "graphql",
+   "incident",
+   "crm",
+   "erp",
+   "harbor",
+   "registry",
+   "monitor",
+   "metric",
+   "log"
+  ],
+  "STATUS_SCORES": {
+   "200": 40,
+   "201": 35,
+   "204": 25,
+   "301": 15,
+   "302": 15,
+   "307": 10,
+   "308": 15,
+   "401": 30,
+   "403": 25,
+   "404": 10,
+   "405": 20,
+   "409": 20,
+   "500": 35,
+   "502": 30,
+   "503": 20,
+   "504": 25
+  },
+  "KATANA_INTERESTING": [
+   [
+    ".git/",
+    "Exposed .git Directory"
+   ],
+   [
+    ".env",
+    "Exposed .env File"
+   ],
+   [
+    ".svn/",
+    "Exposed .svn Directory"
+   ],
+   [
+    "wp-admin",
+    "WordPress Admin Panel"
+   ],
+   [
+    "wp-login",
+    "WordPress Login"
+   ],
+   [
+    "wp-json",
+    "WordPress REST API"
+   ],
+   [
+    "xmlrpc.php",
+    "XML-RPC Endpoint"
+   ],
+   [
+    "swagger",
+    "Swagger/OpenAPI Spec"
+   ],
+   [
+    "openapi",
+    "OpenAPI Spec"
+   ],
+   [
+    "graphql",
+    "GraphQL Endpoint"
+   ],
+   [
+    "actuator",
+    "Spring Boot Actuator"
+   ],
+   [
+    "phpinfo",
+    "phpinfo() Exposure"
+   ],
+   [
+    "server-status",
+    "Apache Server Status"
+   ],
+   [
+    ".bak",
+    "Backup File Exposure"
+   ],
+   [
+    ".sql",
+    "SQL File Exposure"
+   ],
+   [
+    ".zip",
+    "Archive File Exposure"
+   ],
+   [
+    ".tar",
+    "Archive File Exposure"
+   ],
+   [
+    ".yml",
+    "Config File Exposure"
+   ],
+   [
+    ".yaml",
+    "Config File Exposure"
+   ],
+   [
+    "docker-compose",
+    "Docker Compose Exposure"
+   ],
+   [
+    "id_rsa",
+    "Private Key Exposure"
+   ],
+   [
+    ".htaccess",
+    "Htaccess Exposure"
+   ],
+   [
+    "web.config",
+    "Web Config Exposure"
+   ],
+   [
+    "/admin",
+    "Admin Path"
+   ],
+   [
+    "/console",
+    "Console Path"
+   ],
+   [
+    "/debug",
+    "Debug Endpoint"
+   ],
+   [
+    "/upload",
+    "Upload Endpoint"
+   ],
+   [
+    "jwt",
+    "JWT Reference"
+   ],
+   [
+    "token=",
+    "Token in URL"
+   ],
+   [
+    "api_key",
+    "API Key Reference"
+   ],
+   [
+    "secret",
+    "Secret Reference"
+   ],
+   [
+    "/backup",
+    "Backup Path"
+   ]
+  ],
+  "SEVERITY_SCORES": {
+   "critical": 25,
+   "high": 18,
+   "medium": 10,
+   "low": 5,
+   "info": 2,
+   "unknown": 2
+  }
+ },
+ "score": {
+  "reasons": {
+   "200": "Fully accessible — confirms live endpoint, potential for direct interaction and data extraction",
+   "201": "Resource created — confirms write access or API functionality",
+   "204": "No content — endpoint accepted request, may have side effects worth exploring",
+   "301": "Permanent redirect — may leak internal paths or reveal app structure",
+   "302": "Temporary redirect — may expose auth-gated URLs behind redirect chain",
+   "307": "Temporary redirect — preserving method, potential redirect-based auth bypass",
+   "308": "Permanent redirect — preserving method, follow to find real endpoint",
+   "401": "Unauthorized — confirms auth exists, test for brute force, default creds, JWT issues",
+   "403": "Forbidden — access control present but may be bypassable (verb tampering, path traversal, IDOR)",
+   "404": "Not found — low signal, but custom 404 pages may leak server/framework info",
+   "405": "Method not allowed — confirms endpoint exists, try other HTTP methods (PUT, DELETE, PATCH)",
+   "409": "Conflict — may indicate stateful logic, potential for race conditions",
+   "500": "Server error — unhandled input may trigger crashes, SQLi, SSTI, or code execution",
+   "502": "Bad gateway — upstream failure, may indicate separate backend server (SSRF potential)",
+   "503": "Service unavailable — may reveal backend architecture, try when service recovers",
+   "504": "Gateway timeout — upstream timeout, potential DoS vector or slow desync attacks"
+  },
+  "tech_reasons": {
+   "WordPress": "CMS target — test for plugin CVEs, WPScan, user enumeration, XML-RPC abuse",
+   "PHP": "Server-side language — test for SQLi, file inclusion (LFI/RFI), deserialization, type juggling",
+   "MySQL": "Database backend — test for SQL injection, privilege escalation, data exfiltration",
+   "Redis": "In-memory DB — check for unauthenticated access, SSRF to Redis, command injection",
+   "Apache": "Web server — test for path traversal, .htaccess bypass, mod_proxy SSRF",
+   "Nginx": "Reverse proxy — test for path confusion, SSRF via upstream, request smuggling",
+   "IIS": "Windows server — test for ASPX deserialization, web.config leak, NTLM relay",
+   "Windows Server": "Windows host — test for SMB, RDP, WinRM, lateral movement vectors",
+   "Microsoft ASP.NET": "Framework target — test for ViewState deserialization, padding oracle, SSRF",
+   "Cloudflare": "CDN/WAF — origin IP may be exposed via DNS history,邮件 headers, or subdomains",
+   "HubSpot": "SaaS platform — test for API key exposure, OAuth misconfig, data leakage",
+   "Amazon S3": "Cloud storage — test for bucket listing, public read/write, metadata endpoints",
+   "Amazon CloudFront": "CDN — find origin server, test for cache poisoning, origin header bypass",
+   "F5 BigIP": "Load balancer — high-value CVE targets (CVE-2022-1388 RCE), test for iControl API",
+   "Citrix": "Remote access — CVE-2019-19781 path traversal, test for session hijack, RCE",
+   "Jenkins": "CI/CD server — script console RCE, credential dump, pipeline injection",
+   "Grafana": "Monitoring — CVE-2021-43798 path traversal, test for unauthenticated dashboard access",
+   "Zabbix": "Monitoring — test for SQLi in API, credential brute force, agent command injection",
+   "SAP": "Enterprise app — high-value target, test for SAP-specific CVEs, default credentials",
+   "Harbor": "Container registry — test for project enumeration, image pull, CVE-2020-16090",
+   "GitLab": "Dev platform — test for repo enumeration, CI/CD pipeline abuse, SSRF (CVE-2021-22214)",
+   "Tomcat": "App server — test for Manager app brute force, WAR file upload RCE",
+   "Spring": "Java framework — test for Spring4Shell (CVE-2022-22965), SpEL injection",
+   "Django": "Python framework — test for debug mode, ORM injection, CSRF bypass",
+   "Flask": "Python framework — test for Jinja2 SSTI, debug mode info leak",
+   "Laravel": "PHP framework — test for debug mode, env file exposure, deserialization (CVE-2021-3129)",
+   "Drupal": "CMS — test for Drupalgeddon (CVE-2018-7600), module vulnerabilities",
+   "Joomla": "CMS — test for known CVEs, SQLi in components, template disclosure",
+   "Basic": "Basic auth detected — brute force credentials, test for default username/password combos",
+   "Microsoft IIS": "Windows web server — test for shortname vulnerability, WebDAV, buffer overflow",
+   "Express": "Node.js framework — test for prototype pollution, SSTI, JWT issues",
+   "Docker": "Container platform — test for unauthenticated API, container escape, secret exposure",
+   "Kubernetes": "Container orchestration — test for API server access, RBAC bypass, secret exposure"
+  },
+  "triggers": [
+   [
+    [
+     "api.",
+     ".api"
+    ],
+    10,
+    "API surface",
+    "API subdomain detected — test for IDOR, BOLA, mass assignment, injection, rate limiting"
+   ],
+   [
+    [
+     "auth.",
+     "login.",
+     "sso."
+    ],
+    10,
+    "Auth surface",
+    "Authentication endpoint — test for brute force, default creds, OAuth/SAML bypass, session fixation"
+   ],
+   [
+    [
+     "vpn.",
+     "gateway."
+    ],
+    12,
+    "VPN/Gateway",
+    "VPN/gateway — high-value target, test for known CVEs, auth bypass, credential stuffing"
+   ],
+   [
+    [
+     "jenkins.",
+     "gitlab.",
+     "ci.",
+     "drone."
+    ],
+    15,
+    "CI/CD pipeline",
+    "CI/CD server — potential RCE via build scripts, credential leakage, pipeline injection"
+   ],
+   [
+    [
+     "grafana.",
+     "zabbix.",
+     "kibana.",
+     "prometheus.",
+     "monitor."
+    ],
+    10,
+    "Monitoring",
+    "Monitoring platform — may expose internal metrics, credentials, infrastructure details"
+   ],
+   [
+    [
+     "admin.",
+     "manage.",
+     "panel.",
+     "console."
+    ],
+    12,
+    "Admin panel",
+    "Admin interface — high-privilege target, test for auth bypass, default creds, IDOR"
+   ],
+   [
+    [
+     "internal.",
+     "intranet.",
+     "private."
+    ],
+    10,
+    "Internal tool",
+    "Internal tool — not meant for public access, likely has weaker security controls"
+   ],
+   [
+    [
+     "staging.",
+     "stage.",
+     "dev.",
+     "test.",
+     "qa.",
+     "uat.",
+     "sandbox."
+    ],
+    10,
+    "Non-production env",
+    "Non-production environment — often has weaker security, debug modes, test credentials"
+   ],
+   [
+    [
+     "legacy.",
+     "old.",
+     "v1.",
+     "archive."
+    ],
+    8,
+    "Legacy system",
+    "Legacy system — likely unpatched, running deprecated software with known CVEs"
+   ],
+   [
+    [
+     "mail.",
+     "smtp.",
+     "exchange.",
+     "owa.",
+     "webmail."
+    ],
+    8,
+    "Email",
+    "Email server — test for NTLM leak, ProxyShell, open relay, credential brute force"
+   ],
+   [
+    [
+     "ftp.",
+     "s3.",
+     "bucket.",
+     "minio."
+    ],
+    8,
+    "File storage",
+    "File storage — test for anonymous access, public listing, upload vulnerabilities"
+   ],
+   [
+    [
+     "db.",
+     "database.",
+     "mysql.",
+     "redis.",
+     "mongo.",
+     "elastic."
+    ],
+    12,
+    "Database",
+    "Database endpoint — test for unauthenticated access, default creds, injection, data exfiltration"
+   ],
+   [
+    [
+     "sap.",
+     "erp.",
+     "crm."
+    ],
+    10,
+    "Enterprise app",
+    "Enterprise application — high-value target, test for business logic flaws, data exposure"
+   ],
+   [
+    [
+     "harbor.",
+     "registry.",
+     "docker."
+    ],
+    10,
+    "Container registry",
+    "Container registry — test for image pull, project enumeration, CVE-2020-16090"
+   ],
+   [
+    [
+     "swagger.",
+     "docs.",
+     "openapi."
+    ],
+    10,
+    "API docs exposed",
+    "API documentation exposed — reveals all endpoints, parameters, and data models for targeted attacks"
+   ],
+   [
+    [
+     "jira.",
+     "confluence.",
+     "wiki."
+    ],
+    8,
+    "Dev tooling",
+    "Dev tooling — may expose internal project details, credentials in tickets, CVEs"
+   ],
+   [
+    [
+     "grafana.",
+     "kibana.",
+     "splunk."
+    ],
+    8,
+    "Observability",
+    "Observability platform — may expose logs, metrics, internal infrastructure details"
+   ],
+   [
+    [
+     "keycloak.",
+     "oauth.",
+     "saml."
+    ],
+    8,
+    "Identity provider",
+    "Identity provider — central auth system, compromise here may grant access to everything"
+   ]
+  ],
+  "title_triggers": [
+   [
+    [
+     "admin",
+     "dashboard",
+     "panel",
+     "console",
+     "manager"
+    ],
+    8,
+    "Admin interface",
+    "Admin interface in title — high-privilege panel, test for auth bypass and default creds"
+   ],
+   [
+    [
+     "login",
+     "sign in",
+     "log in",
+     "authenticate"
+    ],
+    6,
+    "Login page",
+    "Login page — entry point for brute force, credential stuffing, default creds, MFA bypass"
+   ],
+   [
+    [
+     "error",
+     "exception",
+     "traceback",
+     "debug",
+     "stack trace"
+    ],
+    10,
+    "Error/debug exposure",
+    "Error/debug info exposed — may leak framework version, file paths, SQL queries, stack traces"
+   ],
+   [
+    [
+     "swagger",
+     "openapi",
+     "graphql",
+     "api"
+    ],
+    8,
+    "API documentation",
+    "API documentation in title — reveals endpoints, parameters, auth mechanisms"
+   ],
+   [
+    [
+     "phpinfo",
+     "server-status",
+     "server-info"
+    ],
+    12,
+    "Server info exposed",
+    "Server info page — leaks PHP config, modules, paths, environment variables, potentially secrets"
+   ],
+   [
+    [
+     "default",
+     "welcome",
+     "apache",
+     "nginx"
+    ],
+    4,
+    "Default page",
+    "Default/server page — may indicate misconfiguration, check for hidden virtual hosts"
+   ],
+   [
+    [
+     "index of",
+     "directory listing",
+     "parent directory"
+    ],
+    12,
+    "Directory listing",
+    "Directory listing enabled — exposes file structure, potentially sensitive files and backups"
+   ]
+  ],
+  "cdn_keywords": [
+   "cloudflare",
+   "akamai",
+   "fastly",
+   "cloudfront",
+   "imperva",
+   "sucuri",
+   "aws waf"
+  ]
+ },
+ "steps": {
+  "base": [
+   [
+    "recon",
+    "Infrastructure",
+    [
+     "What ports are open and what services run on each?",
+     "Is it cloud-hosted (AWS/GCP/Azure) or on-prem? Any cloud metadata endpoint reachable?",
+     "Is there a WAF or reverse proxy in front? (Cloudflare, Akamai, Fastly, AWS WAF)",
+     "What server software is running? (Nginx, Apache, IIS, Tomcat, custom)",
+     "What OS and kernel version? Any known CVEs for this stack?",
+     "Does it host multiple apps (vhosting)? Any shared infrastructure with other subdomains?",
+     "Are there non-HTTP services on open ports? (SSH, RDP, DB, Redis, MongoDB)",
+     "What are all resolved IPs? Any unusual DNS records (TXT, MX, SPF, DMARC)?"
+    ]
+   ],
+   [
+    "stack",
+    "Tech Stack",
+    [
+     "What languages and frameworks power this app? (PHP, Node.js, Python, Java, .NET, Go, Ruby)",
+     "What CMS or platform? (WordPress, Drupal, Joomla, Laravel, Django, Spring)",
+     "What third-party libraries or packages? Any known CVEs for their versions?",
+     "Are there custom JavaScript libraries? Any client-side framework? (React, Angular, Vue)",
+     "What database backend? (MySQL, PostgreSQL, MongoDB, Redis, Oracle)",
+     "Is source code publicly available? (GitHub, GitLab, open-source repo)"
+    ]
+   ],
+   [
+    "surface",
+    "Attack Surface",
+    [
+     "What is the primary function of this subdomain? (API, admin portal, marketing, internal tool)",
+     "Is it production, staging, dev, or QA? Any debug panels or test data exposed?",
+     "What are all accessible endpoints? (robots.txt, sitemap.xml, .env, .git, swagger, GraphQL)",
+     "Are there file upload features? What types accepted and where stored?",
+     "Are there API endpoints? REST or GraphQL? Any introspection or documentation exposed?",
+     "Are WebSockets used? Any Server-Sent Events or long-polling endpoints?",
+     "What HTTP methods allowed? (GET, POST, PUT, DELETE, PATCH, OPTIONS)",
+     "Does this subdomain interact with other internal services? (SSRF potential)"
+    ]
+   ],
+   [
+    "auth",
+    "Auth & Session",
+    [
+     "Is there authentication? What type? (Form, OAuth SSO, SAML, JWT, API key, mTLS)",
+     "How is session established and maintained? (Cookie, JWT, token in header, session ID)",
+     "What user roles exist? (admin, user, viewer, API, service account)",
+     "How are users identified in requests? (user_id param, JWT claim, cookie, header)",
+     "Is there 2FA or MFA? Can it be bypassed or enumerated?",
+     "Is there rate limiting on login, password reset, or registration?",
+     "Is there a password reset or account recovery flow? How does it work?",
+     "Are there default or weak credentials? (admin:admin, test:test)"
+    ]
+   ],
+   [
+    "security",
+    "Security Headers",
+    [
+     "Is there a Content Security Policy? What directives? Any weaknesses?",
+     "Is CORS configured? What origins, methods, and credentials are allowed?",
+     "Are security headers present? (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy)",
+     "Is there a CAPTCHA or anti-bot mechanism? Can it be bypassed?",
+     "How does the app handle special characters and encoding? (UTF-8, URL-encode, double-encode)",
+     "Can you trigger error messages? What info is leaked? (stack traces, DB errors, paths)",
+     "Is input validation client-side only, server-side, or both?",
+     "Are there any interesting HTTP headers? (X-Powered-By, Server, custom auth headers)"
+    ]
+   ],
+   [
+    "logic",
+    "Business Logic",
+    [
+     "What data does this subdomain handle? (PII, financial, credentials, internal docs)",
+     "What CRUD operations are available? Which are most sensitive?",
+     "Are there multi-step workflows? (registration, checkout, approval chain, password reset)",
+     "Are there time-sensitive operations? (token expiry, session timeout, race conditions)",
+     "Is there a payment or billing flow? Can amounts, currencies, or quantities be manipulated?",
+     "Are there import or export features? What formats? (CSV, XML, JSON, YAML)",
+     "Are there notification features? (email, SMS, webhook) Any injection points?"
+    ]
+   ]
+  ],
+  "extra": {
+   "tech-wp": [
+    "WordPress",
+    [
+     "Is XML-RPC enabled? Can it be used for brute force or SSRF?",
+     "Are there user enumeration vectors? (/author/, /wp-json/wp/v2/users)",
+     "What plugins are installed? Any known vulnerabilities?",
+     "Is the wp-config.php or .htaccess accessible?"
+    ]
+   ],
+   "tech-api": [
+    "API",
+    [
+     "Is there API documentation or Swagger/OpenAPI spec exposed?",
+     "Are there rate limits on API endpoints? Can they be bypassed?",
+     "For GraphQL: is introspection enabled? What mutations are available?",
+     "Are there BOLA or IDOR vectors? (object IDs in URL, body, or headers)",
+     "Is mass assignment possible? (sending extra fields in PUT/POST)"
+    ]
+   ],
+   "tech-vpn": [
+    "VPN",
+    [
+     "What VPN product and version? Any known CVEs?",
+     "Are there default credentials? (admin/admin, admin/password)",
+     "Is the portal accessible without authentication? What info leaks?"
+    ]
+   ],
+   "tech-cicd": [
+    "CI/CD",
+    [
+     "Is the dashboard accessible without authentication?",
+     "Are there script console or build-execution features?",
+     "Are API tokens or credentials stored in plain text?"
+    ]
+   ],
+   "tech-mon": [
+    "Monitoring",
+    [
+     "Are default credentials active? (admin:admin, admin:grafana)",
+     "Is there unauthenticated data source access?",
+     "Are there known path traversal or SSRF CVEs for this version?"
+    ]
+   ],
+   "tech-cloud": [
+    "Cloud",
+    [
+     "Is the storage bucket publicly readable or writable?",
+     "Can cloud metadata be accessed via SSRF? (169.254.169.254, IMDSv2 bypass)",
+     "Are there dangling DNS records pointing to deleted cloud resources?"
+    ]
+   ],
+   "tech-mail": [
+    "Email",
+    [
+     "Is NTLM authentication enabled? Can hashes be harvested?",
+     "Are there ProxyShell or ProxyLogon vulnerabilities for this version?",
+     "Is there an open mail relay or SMTP misconfiguration?"
+    ]
+   ],
+   "status-401": [
+    "401 Auth",
+    [
+     "What authentication scheme? (Basic, Digest, Bearer, NTLM)",
+     "Can default credentials authenticate? (admin:admin, test:test, root:root)",
+     "Can 401 be bypassed via headers? (X-Forwarded-For, X-Original-URL)"
+    ]
+   ],
+   "status-403": [
+    "403 Forbidden",
+    [
+     "Can 403 be bypassed? (HTTP method change, path traversal, headers)",
+     "Does X-Original-URL or X-Rewrite-URL bypass the restriction?",
+     "Can double-encoding or path normalization tricks bypass?"
+    ]
+   ],
+   "status-200": [
+    "Active 200",
+    [
+     "What hidden endpoints exist? (robots.txt, sitemap, .env, .git, .svn)",
+     "Are there admin panels or management interfaces accessible?",
+     "Is there directory listing enabled anywhere?",
+     "What parameters does each endpoint accept? Any reflected input?"
+    ]
+   ]
+  }
+ }
+};})(typeof window!=='undefined'?window:globalThis);
+</script>
+<script>/*
+ * KeenDash analysis engine - JavaScript port of dash.py (v9.2) lines 1-698.
+ * Pure logic, no DOM. Needs engine-data.js (tables extracted from dash.py).
+ * Python semantics are reproduced deliberately (truthiness, list-membership, stable sort).
+ */
+(function (root) {
+  "use strict";
+  const D = root.KeenData;
+  const { TECH_SCORES, HIGH_VALUE_KEYWORDS, STATUS_SCORES, KATANA_INTERESTING, SEVERITY_SCORES } = D.consts;
+
+  // Python truthiness: 0, "", null, [], {} are falsy.
+  function truthy(v) {
+    if (v === null || v === undefined || v === 0 || v === "" || v === false) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.keys(v).length > 0;
+    return true;
+  }
+  const pyOr = (a, b) => (truthy(a) ? a : b);
+  const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  const get = (o, k, d) => (o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : d);
+
+  // urlparse(v).netloc equivalent: text between "://" and the first of / ? #
+  function netloc(url) {
+    const i = url.indexOf("://");
+    if (i === -1) return "";
+    const rest = url.slice(i + 3);
+    const m = rest.search(/[\/?#]/);
+    return m === -1 ? rest : rest.slice(0, m);
+  }
+  const stripChars = (s, chars) => {
+    let a = 0, b = s.length;
+    while (a < b && chars.includes(s[a])) a++;
+    while (b > a && chars.includes(s[b - 1])) b--;
+    return s.slice(a, b);
+  };
+  const pyStrip = (s) => s.replace(/^\s+|\s+$/g, "");
+
+  function normalizeHost(value) {
+    if (!truthy(value)) return "";
+    let v = pyStrip(String(value));
+    if (v.includes("://")) v = netloc(v);
+    if (v.includes("@")) v = v.split("@").pop();
+    if (v.startsWith("[")) {
+      const end = v.indexOf("]");
+      if (end !== -1) return v.slice(0, end + 1).toLowerCase();
+    }
+    v = v.split(":")[0];
+    return stripChars(v.toLowerCase(), ". ");
+  }
+
+  /**
+   * Parse JSON array / object / JSONL text.
+   * Unlike dash.py (which silently drops bad lines) this also returns a report
+   * so the UI can show imported/skipped counts and reasons.
+   * opts.strictDicts: dash.py's parse_jsonl_generic drops non-dict items; robust_parse_httpx keeps them.
+   */
+  function parseRecords(text, opts) {
+    opts = opts || {};
+    const report = { total: 0, imported: 0, skipped: [], format: "empty" };
+    const raw = pyStrip(text || "");
+    if (!raw) return { entries: [], report };
+    const keep = (d, where) => {
+      report.total++;
+      if (opts.strictDicts && !isObj(d)) { report.skipped.push({ where, reason: "not a JSON object" }); return false; }
+      if (!opts.strictDicts && !isObj(d)) { report.skipped.push({ where, reason: "not a JSON object" }); return false; }
+      return true;
+    };
+    let data, parsedWhole = false;
+    try { data = JSON.parse(raw); parsedWhole = true; } catch (e) { /* fall through to JSONL */ }
+    const entries = [];
+    if (parsedWhole && (Array.isArray(data) || isObj(data))) {
+      if (isObj(data) && data.KeenDash_state) return { entries: [], report: { ...report, format: "keendash-project" } };
+      report.format = Array.isArray(data) ? "json-array" : "json-object";
+      (Array.isArray(data) ? data : [data]).forEach((d, i) => { if (keep(d, "item " + (i + 1))) entries.push(d); });
+    } else {
+      report.format = "jsonl";
+      raw.split(/\r?\n/).forEach((line, i) => {
+        line = pyStrip(line);
+        if (!line) return;
+        try { const d = JSON.parse(line); if (keep(d, "line " + (i + 1))) entries.push(d); }
+        catch (e) { report.total++; report.skipped.push({ where: "line " + (i + 1), reason: "invalid JSON: " + e.message }); }
+      });
+    }
+    report.imported = entries.length;
+    return { entries, report };
+  }
+
+  function extractHost(entry) {
+    let host = pyOr(entry.host, get(entry, "input", ""));
+    if (!truthy(host)) {
+      const url = pyOr(entry.url, get(entry, "final_url", ""));
+      if (truthy(url)) host = netloc(String(url));
+    }
+    return host;
+  }
+  function extractTechs(entry) {
+    const tech = get(entry, "tech", []);
+    if (typeof tech === "string") return tech.split(",").map((t) => t.trim()).filter(Boolean);
+    return Array.isArray(tech) ? tech : [];
+  }
+  function extractIps(entry) {
+    const ips = get(entry, "a", []);
+    if (typeof ips === "string") return [ips];
+    return Array.isArray(ips) ? ips : [];
+  }
+
+  const any = (arr, s) => arr.some((k) => s.includes(k));
+
+  function classifyTarget(host, techs, title, url) {
+    const c = `${host.toLowerCase()} ${techs.join(" ").toLowerCase()} ${(title || "").toLowerCase()} ${(url || "").toLowerCase()}`;
+    const hl = host.toLowerCase();
+    const cats = [];
+    if (any(["vpn", "gateway", "sslvpn", "fortinet", "globalprotect", "checkpoint"], c)) cats.push("vpn");
+    if (any(["wordpress", "wp-content", "drupal", "joomla"], c)) cats.push("cms");
+    if (any(["api", "graphql", "rest"], hl) || any(["/api/", "swagger"], c)) cats.push("api");
+    if (any(["admin", "panel", "dashboard", "manage", "console"], c)) cats.push("admin");
+    if (any(["mail", "smtp", "exchange", "owa", "webmail"], c)) cats.push("email");
+    if (any(["cloud", "aws", "s3", "azure", "gcp", "oracle"], c)) cats.push("cloud");
+    if (any(["jenkins", "gitlab", "ci", "cd", "deploy", "harbor"], c)) cats.push("cicd");
+    if (any(["grafana", "zabbix", "kibana", "prometheus", "analytics"], c)) cats.push("monitoring");
+    if (any(["mysql", "postgres", "mongo", "redis", "elastic", "database"], c)) cats.push("database");
+    if (any(["auth", "login", "sso", "oauth", "saml", "keycloak"], c)) cats.push("auth");
+    if (!cats.length) cats.push("web");
+    return cats;
+  }
+
+  function detectVulnerabilities(entry, techs, host, title, url) {
+    let v = [];
+    const s = get(entry, "status_code", 0);
+    const c = `${host} ${techs.join(" ")} ${title || ""} ${url || ""}`.toLowerCase();
+    if (c.includes("wordpress")) v.push("XSS (Stored)", "IDOR", "Plugin CVEs", "User Enumeration");
+    if (any(["api", "graphql"], c)) v.push("IDOR", "BOLA", "Mass Assignment");
+    if (any(["vpn", "gateway"], c)) v.push("Auth Bypass", "CVE Exploitation");
+    if (any(["login", "auth", "sso"], c)) v.push("Brute Force", "OAuth Misconfig");
+    if (any(["s3", "bucket", "cloud"], c)) v.push("SSRF", "Bucket Listing", "Cloud Metadata");
+    if (any(["exchange", "owa", "mail"], c)) v.push("NTLM Leak", "ProxyShell");
+    if (any(["jenkins", "ci"], c)) v.push("RCE (Script Console)", "Credential Dump");
+    if (c.includes("f5") || c.includes("bigip")) v.push("CVE-2022-1388 (RCE)");
+    if (c.includes("citrix")) v.push("CVE-2019-19781 (Traversal)");
+    if (c.includes("grafana")) v.push("CVE-2021-43798 (Traversal)");
+    if (s === 200) v.push("Information Disclosure");
+    if (s === 401) v.push("Brute Force");
+    if (s === 403) v.push("403 Bypass");
+    return Array.from(new Set(v)); // dict.fromkeys order-preserving dedupe
+  }
+
+  function calculateScore(entry) {
+    const S = D.score;
+    const bd = { status: [], tech: [], content: [], naming: [], title: [], infra: [], recon: [] };
+    const host = extractHost(entry);
+    const techs = extractTechs(entry);
+    const status = get(entry, "status_code", 0);
+    const words = get(entry, "words", 0);
+    const title = (pyOr(get(entry, "title", ""), "")).toLowerCase();
+    const cl = get(entry, "content_length", 0);
+    const port = String(get(entry, "port", ""));
+    const hl = String(host).toLowerCase();
+    const techLower = techs.map((t) => String(t).toLowerCase()).join(" ");
+
+    // Status
+    const sPts = get(STATUS_SCORES, status, 10);
+    bd.status.push([`HTTP ${status}`, sPts, get(S.reasons, status, `Status code ${status} — contributes to attack surface assessment`)]);
+
+    // Tech: first matching known tech per detected tech (dict order), then Basic-auth extra
+    for (const tech of techs) {
+      for (const known of Object.keys(TECH_SCORES)) {
+        if (String(tech).toLowerCase().includes(known.toLowerCase())) {
+          bd.tech.push([known, TECH_SCORES[known], get(S.tech_reasons, known, `${known} technology detected — adds to attack surface`)]);
+          break;
+        }
+      }
+    }
+    if (techs.includes("Basic")) bd.tech.push(["Basic Auth", 10, "Basic authentication detected — weak credential scheme, brute force and default cred testing viable"]);
+
+    // Content
+    if (words > 10000) bd.content.push(["Rich page (>10k words)", 15, "Complex application — significant functionality, forms, and attack surface to explore"]);
+    else if (words > 5000) bd.content.push(["Medium page (>5k words)", 12, "Moderate application — likely has multiple features and interactive elements"]);
+    else if (words > 1000) bd.content.push(["Page (>1k words)", 8, "Non-trivial content — not a stub page, contains real functionality"]);
+    else if (words > 100) bd.content.push(["Minimal page (>100 words)", 5, "Some content present — limited functionality but still worth checking"]);
+    if (cl > 100000) bd.content.push(["Large response (>100kB)", 10, "Heavy response — includes embedded JS/CSS, dynamic content, or API data"]);
+    else if (cl > 50000) bd.content.push(["Medium response (>50kB)", 7, "Substantial response — indicates real application logic"]);
+    else if (cl > 10000) bd.content.push(["Response >10kB", 5, "Moderate response size — some application logic present"]);
+
+    // Naming
+    const hits = HIGH_VALUE_KEYWORDS.filter((kw) => hl.includes(kw));
+    if (hits.length) bd.naming.push([`Keywords (${hits.slice(0, 5).join(", ")})`, hits.length * 5, `Hostname contains high-value keywords (${hits.slice(0, 3).join(", ")}) — likely sensitive or internal endpoint`]);
+    if (hits.length > 5) bd.naming.push(["10+ keywords", 15, "Hostname densely packed with keywords — very high probability of sensitive functionality"]);
+    for (const [trig, pts, label, reason] of S.triggers) if (any(trig, hl)) bd.naming.push([label, pts, reason]);
+
+    // Title
+    for (const [trig, pts, label, reason] of S.title_triggers) if (any(trig, title)) bd.title.push([label, pts, reason]);
+
+    // Infra
+    if (port && !["", "80", "443", "8080", "8443"].includes(port)) bd.infra.push([`Non-standard port (${port})`, 12, `Non-standard port ${port} — often internal/admin services exposed, may bypass security controls`]);
+    if (["8080", "8443", "8000", "9000", "3000", "5000"].includes(port)) bd.infra.push([`Dev port (${port})`, 8, `Development port ${port} — likely dev server with weaker security, debug mode, or test data`]);
+    const ips = extractIps(entry);
+    if (ips.length > 4) bd.infra.push([`Multi-IP (${ips.length} addresses)`, 5, `Multiple IPs (${ips.length}) — load-balanced or distributed, test all backends individually`]);
+    for (const cdn of S.cdn_keywords) {
+      if (techLower.includes(cdn)) {
+        const t = cdn.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()); // str.title()
+        bd.infra.push([`CDN/WAF (${t})`, -5, `WAF/CDN detected (${t}) — request filtering active, origin IP discovery needed`]);
+        break;
+      }
+    }
+    const server = String(pyOr(get(entry, "webserver", ""), "")).toLowerCase();
+    if (server && any(["apache/", "nginx/", "iis/", "tomcat/"], server)) bd.infra.push(["Server version disclosure", 4, "Server version leaked in headers — enables targeted CVE research for exact version"]);
+
+    let total = 0;
+    for (const cat of Object.values(bd)) for (const sig of cat) total += sig[1];
+    return [Math.max(0, Math.min(100, total)), bd];
+  }
+
+  function priorityFromScore(score) {
+    if (score >= 75) return "critical";
+    if (score >= 55) return "high";
+    if (score >= 35) return "medium";
+    if (score >= 20) return "low";
+    return "info";
+  }
+
+  function generateSteps(t) {
+    const h = t.host.toLowerCase();
+    const techs = t.tech.map((x) => String(x).toLowerCase());
+    const st = t.status;
+    const techStr = techs.join(" ");
+    const X = D.steps.extra;
+    const base = D.steps.base.map((b) => b.slice());
+    const add = (k) => base.push([k, X[k][0], X[k][1]]);
+    if (techs.some((x) => x.includes("wordpress")) || techStr.includes("wordpress")) add("tech-wp");
+    if (any(["api", "graphql", "rest"], h) || techStr.includes("graphql")) add("tech-api");
+    if (any(["vpn", "gateway", "sslvpn", "fortinet", "globalprotect"], h)) add("tech-vpn");
+    if (any(["jenkins", "gitlab", "ci", "cd", "harbor", "registry"], h)) add("tech-cicd");
+    if (any(["grafana", "zabbix", "kibana", "prometheus", "monitor"], h)) add("tech-mon");
+    if (any(["s3", "bucket", "cloudfront", "cloud"], h) || techStr.includes("s3")) add("tech-cloud");
+    if (any(["exchange", "owa", "mail", "smtp", "webmail"], h)) add("tech-mail");
+    if (st === 401) add("status-401");
+    if (st === 403) add("status-403");
+    if (st === 200) add("status-200");
+    const steps = [];
+    for (const [k, name, qs] of base) for (const q of qs) steps.push(`${k}|${name}|${q}`);
+    return steps;
+  }
+
+  function buildTargets(entries) {
+    const hostMap = new Map();
+    for (const e of entries) {
+      const h = extractHost(e);
+      if (!truthy(h)) continue;
+      // Duplicate rule (from dash.py): keep the record with the most words; ties keep the first seen.
+      if (!hostMap.has(h) || get(e, "words", 0) > get(hostMap.get(h), "words", 0)) hostMap.set(h, e);
+    }
+    const targets = [];
+    for (const [host, entry] of hostMap) {
+      const techs = extractTechs(entry);
+      const title = pyOr(get(entry, "title", ""), "");
+      const url = get(entry, "url", "");
+      const status = get(entry, "status_code", 0);
+      const words = get(entry, "words", 0);
+      const cl = get(entry, "content_length", 0);
+      const ips = extractIps(entry);
+      const ip = get(entry, "host_ip", ips.length ? ips[0] : "");
+      const port = get(entry, "port", "");
+      const location = get(entry, "location", "");
+      const [score, breakdown] = calculateScore(entry);
+      const parts = [];
+      if (status === 200) {
+        if (words > 1000) parts.push(`Active app (${Number(words).toLocaleString("en-US")} words)`);
+        else if (words > 100) parts.push(`Page (${words} words)`);
+        else parts.push("Minimal content");
+      } else if (status === 301 || status === 302) parts.push(`Redirects to ${pyOr(location, "external")}`);
+      else if (status === 401) parts.push("Auth required");
+      else if (status === 403) parts.push("Forbidden");
+      else if ([500, 502, 503].includes(status)) parts.push(`Server error (${status})`);
+      if (techs.length) parts.push(`Stack: ${techs.slice(0, 5).join(", ")}`);
+      targets.push({
+        host, url, ip, port, status, tech: techs, title, words, cl, location,
+        score, priority: priorityFromScore(score), cats: classifyTarget(host, techs, title, url),
+        vulns: detectVulnerabilities(entry, techs, host, title, url),
+        steps: generateSteps({ host, tech: techs, status }),
+        desc: parts.length ? parts.join(". ") + "." : "No details.",
+        ips, score_breakdown: breakdown,
+      });
+    }
+    targets.sort((a, b) => b.score - a.score); // stable, like Python's sorted(reverse=True)
+    return targets;
+  }
+
+  function buildIpMap(targets) {
+    const m = new Map();
+    for (const t of targets) for (const ip of t.ips) {
+      if (!truthy(ip)) continue;
+      if (!m.has(ip)) m.set(ip, { hosts: [], ports: new Set(), techs: new Set() });
+      const r = m.get(ip);
+      r.hosts.push(t.host);
+      if (truthy(t.port)) r.ports.add(String(t.port));
+      t.tech.forEach((x) => r.techs.add(x));
+    }
+    return [...m.entries()].sort((a, b) => b[1].hosts.length - a[1].hosts.length);
+  }
+
+  // ---- Katana / Nuclei enrichment (from parse_katana / parse_nuclei / enrich_with_recon) ----
+  function parseKatana(text) {
+    const { entries, report } = parseRecords(text, { strictDicts: true });
+    const result = {};
+    for (const e of entries) {
+      let url = pyOr(e.endpoint, e.url);
+      if (!truthy(url) && isObj(e.request)) url = pyOr(e.request.endpoint, e.request.url);
+      if (!truthy(url)) continue;
+      const host = normalizeHost(url);
+      if (!host) continue;
+      const r = (result[host] = result[host] || { urls: new Set(), hits: {} });
+      r.urls.add(url);
+      const low = String(url).toLowerCase();
+      for (const [kw, label] of KATANA_INTERESTING) if (low.includes(kw)) (r.hits[label] = r.hits[label] || new Set()).add(url);
+    }
+    return { map: result, report };
+  }
+  function parseNuclei(text) {
+    const { entries, report } = parseRecords(text, { strictDicts: true });
+    const result = {};
+    for (const e of entries) {
+      const hostRaw = pyOr(pyOr(pyOr(e.host, e["matched-at"]), e.ip), "");
+      const host = normalizeHost(hostRaw);
+      if (!host) continue;
+      const info = isObj(e.info) ? e.info : {};
+      (result[host] = result[host] || []).push({
+        id: pyOr(pyOr(e["template-id"], e.template), "unknown"),
+        name: pyOr(pyOr(info.name, e["template-id"]), "Finding"),
+        severity: String(pyOr(info.severity, "info")).toLowerCase(),
+        matched_at: pyOr(e["matched-at"], hostRaw),
+        tags: pyOr(info.tags, []),
+      });
+    }
+    return { map: result, report };
+  }
+  const sortedStr = (arr) => arr.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  function enrichWithRecon(targets, katanaMap, nucleiMap) {
+    katanaMap = katanaMap || {}; nucleiMap = nucleiMap || {};
+    if (!Object.keys(katanaMap).length && !Object.keys(nucleiMap).length) return targets;
+    for (const t of targets) {
+      let changed = false;
+      const k = katanaMap[t.host];
+      if (k) {
+        const urls = sortedStr([...k.urls]);
+        const interesting = Object.entries(k.hits).map(([label, u]) => ({ label, urls: sortedStr([...u]).slice(0, 10) }));
+        t.katana = { count: urls.length, sample: urls.slice(0, 200), interesting };
+        const bonus = Math.min(20, interesting.length * 4);
+        t.score = Math.min(100, t.score + bonus);
+        t.score_breakdown.recon.push([`Katana (${interesting.length} patterns)`, bonus, "Crawled URLs revealed sensitive paths — expanded attack surface with known endpoints to test"]);
+        for (const it of interesting) if (!t.vulns.includes(it.label)) t.vulns.push(it.label);
+        changed = true;
+      }
+      const n = nucleiMap[t.host];
+      if (n) {
+        const seen = new Set(), findings = [];
+        let bonus = 0;
+        for (const f of n) {
+          const key = f.id + "\u0000" + f.name;
+          if (seen.has(key)) continue;
+          seen.add(key); findings.push(f);
+          bonus += get(SEVERITY_SCORES, f.severity, 2);
+          const label = `${f.name} (${f.severity})`;
+          if (!t.vulns.includes(label)) t.vulns.push(label);
+          if (/ssl|tls/.test(String(f.id).toLowerCase()) && !t.cats.includes("tls")) t.cats.push("tls");
+        }
+        t.nuclei = findings.slice(0, 200);
+        const capped = Math.min(40, bonus);
+        t.score = Math.min(100, t.score + capped);
+        t.score_breakdown.recon.push([`Nuclei (${findings.length} findings)`, capped, `Nuclei confirmed ${findings.length} security findings — validated vulnerabilities requiring manual verification`]);
+        changed = true;
+      }
+      if (changed) t.priority = priorityFromScore(t.score);
+    }
+    return targets;
+  }
+
+  root.KeenEngine = {
+    normalizeHost, parseRecords, extractHost, extractTechs, extractIps, classifyTarget,
+    detectVulnerabilities, calculateScore, priorityFromScore, generateSteps, buildTargets,
+    buildIpMap, parseKatana, parseNuclei, enrichWithRecon,
+  };
+})(typeof window !== "undefined" ? window : globalThis);
+</script>
+<script>
+"use strict";
+/* ================= KeenDash app =================
+ * Project format (keendash-project v1):
+ * {format:"keendash-project", version:1, exported, settings, raw:[httpx records],
+ *  katana:{host:{urls:[],hits:{label:[urls]}}}, nuclei:{host:[findings]},
+ *  targets:[analysed targets incl. score_breakdown], notes:{host:{text,findings,progress,done:{stepText:true}}}}
+ * Notes are keyed by HOSTNAME, so they survive re-imports and rescoring.
+ */
+const E = KeenEngine, PR = ["critical","high","medium","low","info"];
+const $ = (s,r)=>(r||document).querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const blank = () => ({raw:[],katana:{},nuclei:{},targets:[],notes:{},settings:{}});
+let S = blank();
+let ui = {view:"dash", host:null, q:"", prio:"", status:"", tech:"", sort:"score", dir:-1, limit:300};
+
+/* ---------- storage (IndexedDB, autosave) ---------- */
+let db=null, saveT=null;
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("keendash",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function loadWS(){try{db=await idb();return await new Promise((res,rej)=>{const q=db.transaction("kv").objectStore("kv").get("workspace");q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}catch(e){toast("Browser storage unavailable: "+e.message+"\nUse Export to keep your work.",1);return null;}}
+function save(){clearTimeout(saveT);$("#saved").textContent="saving...";saveT=setTimeout(()=>{if(!db)return;const t=db.transaction("kv","readwrite");t.objectStore("kv").put(S,"workspace");t.oncomplete=()=>$("#saved").textContent="saved in this browser";t.onerror=()=>toast("Autosave failed: "+t.error,1);},300);}
+function toast(t,err){const d=document.createElement("div");d.className="m"+(err?" err":"");d.textContent=t;d.onclick=()=>d.remove();$("#msg").appendChild(d);if(!err)setTimeout(()=>d.remove(),9000);}
+
+/* ---------- analysis glue ---------- */
+// serialise/revive Katana sets so they live in JSON/IndexedDB
+const katOut = m => Object.fromEntries(Object.entries(m).map(([h,v])=>[h,{urls:[...v.urls],hits:Object.fromEntries(Object.entries(v.hits).map(([l,u])=>[l,[...u]]))}]));
+const katIn = m => Object.fromEntries(Object.entries(m).map(([h,v])=>[h,{urls:new Set(v.urls),hits:Object.fromEntries(Object.entries(v.hits).map(([l,u])=>[l,new Set(u)]))}]));
+function analyse(){ // deterministic rebuild from raw records + enrichment
+  const t = E.buildTargets(S.raw);
+  E.enrichWithRecon(t, katIn(S.katana), S.nuclei);
+  t.sort((a,b)=>b.score-a.score);
+  S.targets = t;
+}
+const T = h => S.targets.find(t=>t.host===h);
+const N = h => S.notes[h] || (S.notes[h]={text:"",findings:"",progress:"not started",done:{}});
+const hasNote = n => n && (n.text.trim()||n.findings.trim()||n.progress!=="not started"||Object.keys(n.done).length);
+function progressAll(){let tot=0,done=0;for(const t of S.targets){tot+=t.steps.length;const d=(S.notes[t.host]||{}).done||{};done+=t.steps.filter(s=>d[s]).length;}return [done,tot];}
+
+/* ---------- import ---------- */
+function readFile(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsText(f);});}
+function summary(name,rep){let s=`${name}: ${rep.imported} of ${rep.total} records imported`;if(rep.skipped.length){s+=`, ${rep.skipped.length} skipped`;s+="\n"+rep.skipped.slice(0,8).map(k=>`  - ${k.where}: ${k.reason}`).join("\n");if(rep.skipped.length>8)s+=`\n  ... and ${rep.skipped.length-8} more`;}return s;}
+async function importFiles(files,kind){
+  for(const f of files){
+    let text; try{text=await readFile(f);}catch(e){toast(`${f.name}: could not read file (${e.message})`,1);continue;}
+    if(!text.trim()){toast(`${f.name}: file is empty`,1);continue;}
+    if(kind==="project"){importProject(text,f.name);continue;}
+    if(kind==="httpx"){
+      const {entries,report}=E.parseRecords(text);
+      if(report.format==="keendash-project"){toast(`${f.name} is a KeenDash project file. Use "Import project" instead.`,1);continue;}
+      if(!entries.length){toast(summary(f.name,report)+"\nNo usable HTTPX records found.",1);continue;}
+      // Repeat-import rule: records are appended, then targets are rebuilt per host (same rule as dash.py:
+      // most words wins). Notes are keyed by host and are never touched.
+      const before=S.targets.length, bset=new Set(S.targets.map(t=>t.host));
+      S.raw=S.raw.concat(entries);analyse();
+      const fresh=S.targets.filter(t=>!bset.has(t.host)).length;
+      toast(summary(f.name,report)+`\nTargets: ${before} -> ${S.targets.length} (${fresh} new, existing notes kept)`,report.skipped.length>0&&!entries.length);
+    } else {
+      const p=kind==="katana"?E.parseKatana(text):E.parseNuclei(text);
+      const keys=Object.keys(p.map);
+      if(!keys.length){toast(summary(f.name,p.report)+`\nNo ${kind} records with a usable host.`,1);continue;}
+      if(kind==="katana"){const cur=katIn(S.katana);for(const [h,v] of Object.entries(p.map)){const c=cur[h]=cur[h]||{urls:new Set(),hits:{}};v.urls.forEach(u=>c.urls.add(u));for(const [l,us] of Object.entries(v.hits)){const s=c.hits[l]=c.hits[l]||new Set();us.forEach(u=>s.add(u));}}S.katana=katOut(cur);}
+      else{for(const [h,v] of Object.entries(p.map))S.nuclei[h]=(S.nuclei[h]||[]).concat(v);}
+      analyse();
+      const match=keys.filter(h=>T(h)).length;
+      toast(summary(f.name,p.report)+`\n${keys.length} hosts in file, ${match} match imported targets.`+(match<keys.length?"\nUnmatched hosts are kept but only apply once a matching HTTPX target exists.":""));
+    }
+  }
+  save();render();
+}
+function importProject(text,name){
+  let d;try{d=JSON.parse(text);}catch(e){return toast(`${name}: not valid JSON (${e.message}). Workspace unchanged.`,1);}
+  const bad=[];
+  if(!d||d.format!=="keendash-project")bad.push('missing format "keendash-project"');
+  else{
+    if(typeof d.version!=="number"||d.version>1)bad.push("unsupported version "+d.version);
+    if(!Array.isArray(d.raw))bad.push("raw must be an array");
+    if(!d.notes||typeof d.notes!=="object"||Array.isArray(d.notes))bad.push("notes must be an object");
+    if(d.katana&&typeof d.katana!=="object")bad.push("katana must be an object");
+    if(d.nuclei&&typeof d.nuclei!=="object")bad.push("nuclei must be an object");
+  }
+  if(bad.length)return toast(`${name}: invalid project file\n  - ${bad.join("\n  - ")}\nWorkspace unchanged.`,1);
+  if(S.raw.length||Object.keys(S.notes).length){if(!confirm(`Replace the current workspace (${S.targets.length} targets, ${Object.keys(S.notes).filter(h=>hasNote(S.notes[h])).length} notes) with ${name}?\nExport the current one first if you need it.`))return toast("Project import cancelled. Workspace unchanged.");}
+  const ns={};for(const [h,n] of Object.entries(d.notes))ns[h]={text:String(n.text||""),findings:String(n.findings||""),progress:String(n.progress||"not started"),done:(n.done&&typeof n.done==="object")?n.done:{}};
+  S={raw:d.raw,katana:d.katana||{},nuclei:d.nuclei||{},targets:[],notes:ns,settings:d.settings||{}};
+  analyse();ui.host=null;toast(`Project restored: ${S.targets.length} targets, ${Object.values(ns).filter(hasNote).length} notes.`);
+}
+function exportProject(){
+  if(!S.raw.length&&!Object.keys(S.notes).length)return toast("Nothing to export yet. Import HTTPX data first.",1);
+  const d={format:"keendash-project",version:1,exported:new Date().toISOString(),settings:S.settings,raw:S.raw,katana:S.katana,nuclei:S.nuclei,targets:S.targets,notes:S.notes};
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));
+  a.download="keendash-project-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();toast(`Exported ${S.targets.length} targets.`);
+}
+
+/* ---------- views ---------- */
+const ptag = p => `<span class="tag p-${p}">${p}</span>`;
+const empty = () => `<div class="empty">No targets yet.<br><br><button class="pri" data-act="goto" data-v="data">Import HTTPX results</button></div>`;
+function vDash(){
+  if(!S.targets.length)return empty();
+  const c=Object.fromEntries(PR.map(p=>[p,0]));S.targets.forEach(t=>c[t.priority]++);
+  const ips=new Set();S.targets.forEach(t=>t.ips.forEach(i=>i&&ips.add(i)));
+  const [d,tot]=progressAll(), notes=Object.values(S.notes).filter(hasNote).length, col={critical:"crit",high:"high",medium:"med",low:"low",info:"info"};
+  const top=S.targets.slice(0,12).map(t=>`<tr class="cl" data-act="open" data-h="${esc(t.host)}"><td>${ptag(t.priority)}</td><td>${t.score}</td><td>${esc(t.host)}</td><td>${t.status}</td></tr>`).join("");
+  return `<div class="stats"><div class="stat"><b>${S.targets.length}</b><span>targets</span></div>${PR.map(p=>`<div class="stat"><b style="color:var(--${col[p]})">${c[p]}</b><span>${p}</span></div>`).join("")}
+  <div class="stat"><b>${ips.size}</b><span>unique IPs</span></div><div class="stat"><b>${notes}</b><span>targets with notes</span></div>
+  <div class="stat"><b>${tot?Math.round(d/tot*100):0}%</b><span>checklist (${d}/${tot})</span></div></div>
+  <div class="grid"><div class="panel"><h2>Priority distribution</h2><div><div class="bar">${PR.map(p=>c[p]?`<i style="width:${c[p]/S.targets.length*100}%;background:var(--${col[p]})" title="${p}: ${c[p]}"></i>`:"").join("")}</div>
+  <p class="dim" style="margin:6px 0 0">${PR.map(p=>`${p} ${c[p]}`).join(" / ")}</p></div></div>
+  <div class="panel"><h2>Highest priority</h2><div style="padding:0"><table><tbody>${top}</tbody></table></div></div></div>`;
+}
+function filtered(){
+  const q=ui.q.toLowerCase();let r=S.targets.filter(t=>(!q||t.host.toLowerCase().includes(q))&&(!ui.prio||t.priority===ui.prio)&&(!ui.status||String(t.status)===ui.status)&&(!ui.tech||t.tech.some(x=>String(x)===ui.tech)));
+  const k={score:t=>t.score,host:t=>t.host,status:t=>t.status}[ui.sort];
+  return r.sort((a,b)=>{const x=k(a),y=k(b);return (x<y?-1:x>y?1:0)*ui.dir;});
+}
+function vTargets(){
+  if(!S.targets.length)return empty();
+  const st=[...new Set(S.targets.map(t=>t.status))].sort((a,b)=>a-b), te=[...new Set(S.targets.flatMap(t=>t.tech.map(String)))].sort((a,b)=>a.toLowerCase()<b.toLowerCase()?-1:1);
+  const rows=filtered(), shown=rows.slice(0,ui.limit), arr=c=>ui.sort===c?(ui.dir<0?" v":" ^"):"";
+  return `<div class="tools"><input type="search" id="q" placeholder="Search hostname" value="${esc(ui.q)}" size="24">
+  <select data-f="prio"><option value="">All priorities</option>${PR.map(p=>`<option ${ui.prio===p?"selected":""}>${p}</option>`).join("")}</select>
+  <select data-f="status"><option value="">All statuses</option>${st.map(s=>`<option ${ui.status===String(s)?"selected":""}>${s}</option>`).join("")}</select>
+  <select data-f="tech"><option value="">All technologies</option>${te.map(s=>`<option ${ui.tech===s?"selected":""}>${esc(s)}</option>`).join("")}</select>
+  <span class="dim">${rows.length} of ${S.targets.length}</span></div>
+  <div class="panel"><div style="padding:0"><table><thead><tr><th>Priority</th><th class="s" data-sort="score">Score${arr("score")}</th><th class="s" data-sort="host">Hostname${arr("host")}</th><th class="s" data-sort="status">Status${arr("status")}</th><th>Technology</th><th>Notes</th></tr></thead>
+  <tbody>${shown.map(t=>`<tr class="cl" data-act="open" data-h="${esc(t.host)}"><td>${ptag(t.priority)}</td><td>${t.score}</td><td>${esc(t.host)}</td><td>${t.status}</td><td>${t.tech.slice(0,4).map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</td><td>${hasNote(S.notes[t.host])?"yes":""}</td></tr>`).join("")||`<tr><td colspan="6" class="empty">No targets match these filters.</td></tr>`}</tbody></table></div></div>
+  ${rows.length>shown.length?`<button data-act="more">Show ${Math.min(500,rows.length-shown.length)} more</button>`:""}`;
+}
+function vDetail(){
+  const t=T(ui.host);if(!t){ui.host=null;return vTargets();}
+  const n=N(t.host), bd=t.score_breakdown, names={status:"HTTP status",tech:"Technology",content:"Content",naming:"Hostname",title:"Page title",infra:"Infrastructure",recon:"Recon (Katana / Nuclei)"};
+  const groups={};t.steps.forEach(s=>{const [k,l,q]=s.split("|");(groups[k]=groups[k]||{l,q:[]}).q.push([s,q]);});
+  const done=t.steps.filter(s=>n.done[s]).length;
+  return `<div class="tools"><button data-act="back">&lt; Targets</button> <b style="font-size:15px">${esc(t.host)}</b> ${ptag(t.priority)} <span>score ${t.score}</span></div>
+  <div class="grid"><div>
+  <div class="panel"><h2>Overview</h2><div class="kv"><div>URL</div><div>${esc(t.url)||"-"}</div><div>Status</div><div>${t.status}</div><div>Title</div><div>${esc(t.title)||"-"}</div>
+  <div>Technology</div><div>${t.tech.map(x=>`<span class="chip">${esc(x)}</span>`).join("")||"-"}</div><div>IP addresses</div><div class="mono">${t.ips.map(esc).join(", ")||esc(t.ip)||"-"}</div>
+  <div>Port</div><div>${esc(t.port)||"-"}</div><div>Words / size</div><div>${t.words} / ${t.cl}</div>${t.location?`<div>Location</div><div>${esc(t.location)}</div>`:""}
+  <div>Categories</div><div>${t.cats.map(x=>`<span class="chip">${x}</span>`).join("")}</div><div>Summary</div><div>${esc(t.desc)}</div></div></div>
+  <div class="panel"><h2>Score breakdown</h2><div style="padding:0"><table class="bd">${Object.keys(bd).filter(k=>bd[k].length).map(k=>`<tr><th colspan="2">${names[k]}</th></tr>`+bd[k].map(([l,p,r])=>`<tr><td><b>${esc(l)}</b><br><span class="dim">${esc(r)}</span></td><td class="${p<0?"neg":""}">${p>0?"+":""}${p}</td></tr>`).join("")).join("")}</table></div></div>
+  <div class="panel"><h2>Vulnerability suggestions</h2><div>${t.vulns.map(v=>`<span class="chip">${esc(v)}</span>`).join("")||'<span class="dim">None</span>'}</div></div>
+  ${t.katana?`<div class="panel"><h2>Katana (${t.katana.count} URLs)</h2><div>${t.katana.interesting.map(i=>`<b>${esc(i.label)}</b><div class="mono dim">${i.urls.map(esc).join("<br>")}</div>`).join("")||'<span class="dim">No sensitive paths</span>'}</div></div>`:""}
+  ${t.nuclei?`<div class="panel"><h2>Nuclei (${t.nuclei.length} findings)</h2><div style="padding:0"><table><tbody>${t.nuclei.map(f=>`<tr><td>${esc(f.severity)}</td><td>${esc(f.name)}</td><td class="mono dim">${esc(f.matched_at)}</td></tr>`).join("")}</tbody></table></div></div>`:""}
+  </div><div>
+  <div class="panel"><h2>Notes</h2><div><div class="tools"><label>Testing progress <select data-n="progress">${["not started","in progress","done","blocked"].map(p=>`<option ${n.progress===p?"selected":""}>${p}</option>`).join("")}</select></label></div>
+  <p class="dim" style="margin:4px 0">Observations</p><textarea data-n="text">${esc(n.text)}</textarea><p class="dim" style="margin:8px 0 4px">Findings / potential issues</p><textarea data-n="findings">${esc(n.findings)}</textarea></div></div>
+  <div class="panel"><h2>Checklist <span class="dim" id="cnt">(${done}/${t.steps.length})</span></h2><div>${Object.values(groups).map(g=>`<b>${esc(g.l)}</b>${g.q.map(([s,q])=>`<label class="ck ${n.done[s]?"done":""}"><input type="checkbox" data-s="${esc(s)}" ${n.done[s]?"checked":""}><span>${esc(q)}</span></label>`).join("")}<div style="height:6px"></div>`).join("")}</div></div>
+  </div></div>`;
+}
+function vIps(){
+  const m=E.buildIpMap(S.targets);if(!m.length)return `<div class="empty">No IP addresses in the imported data.</div>`;
+  return `<div class="panel"><h2>${m.length} unique IPs (only data present in the HTTPX results)</h2><div style="padding:0"><table><thead><tr><th>IP</th><th>Hosts</th><th>Ports</th><th>Technology</th></tr></thead><tbody>${m.map(([ip,v])=>`<tr><td class="mono">${esc(ip)}</td><td>${v.hosts.map(h=>`<a data-act="open" data-h="${esc(h)}">${esc(h)}</a>`).join("<br>")}</td><td>${[...v.ports].map(esc).join(", ")}</td><td>${[...v.techs].map(x=>`<span class="chip">${esc(x)}</span>`).join("")}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function vNotes(){
+  const hs=Object.keys(S.notes).filter(h=>hasNote(S.notes[h]));if(!hs.length)return `<div class="empty">No notes yet. Open a target and write something, or tick a checklist item.</div>`;
+  return `<div class="panel"><h2>${hs.length} targets with notes</h2><div style="padding:0"><table><thead><tr><th>Host</th><th>Progress</th><th>Checklist</th><th>Notes</th></tr></thead><tbody>${hs.map(h=>{const n=S.notes[h],t=T(h),c=Object.values(n.done).filter(Boolean).length;return `<tr class="cl" ${t?`data-act="open" data-h="${esc(h)}"`:""}><td>${esc(h)}${t?"":' <span class="dim">(not in current targets)</span>'}</td><td>${esc(n.progress)}</td><td>${c}${t?"/"+t.steps.length:""}</td><td class="dim">${esc((n.findings||n.text).slice(0,110))}</td></tr>`;}).join("")}</tbody></table></div></div>`;
+}
+function vData(){
+  const [d,tot]=progressAll();
+  return `<div class="note">Everything is stored in this browser only (IndexedDB) and is never uploaded. Browser storage is local to this browser and device. Use Export project regularly as your backup, and to move work between machines.</div>
+  <div class="grid"><div class="panel"><h2>Import</h2><div><p>HTTPX results (JSON array, JSON object or JSONL). Repeated imports merge by hostname; notes are kept.</p><button class="pri" data-imp="httpx">Import HTTPX file(s)</button>
+  <p>Optional enrichment (raises scores like dash.py -k / -n):</p><button data-imp="katana">Import Katana JSONL</button> <button data-imp="nuclei">Import Nuclei JSONL</button>
+  <p>Restore a saved project (replaces the workspace after confirmation):</p><button data-imp="project">Import project JSON</button></div></div>
+  <div class="panel"><h2>Export / reset</h2><div><p>Workspace: ${S.raw.length} raw records, ${S.targets.length} targets, ${Object.values(S.notes).filter(hasNote).length} notes, ${d}/${tot} checklist items.</p>
+  <button class="pri" data-act="export">Export project JSON</button> <button class="danger" data-act="reset">Clear workspace</button></div></div></div>`;
+}
+const V={dash:vDash,targets:()=>ui.host?vDetail():vTargets(),ips:vIps,notes:vNotes,data:vData};
+function render(){
+  document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("on",a.dataset.v===ui.view));
+  const y=scrollY;$("#main").innerHTML=V[ui.view]();const q=$("#q");if(q&&document.activeElement===document.body&&ui._focusQ){q.focus();q.setSelectionRange(q.value.length,q.value.length);}scrollTo(0,y);
+}
+
+/* ---------- events ---------- */
+let pick="httpx";
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-v],[data-act],[data-sort],[data-imp]");if(!el)return;
+  if(el.dataset.imp){pick=el.dataset.imp;const f=$("#file");f.accept=pick==="project"?".json":".json,.jsonl,.txt";f.multiple=pick!=="project";f.click();return;}
+  if(el.dataset.sort){ui.dir=ui.sort===el.dataset.sort?-ui.dir:(el.dataset.sort==="score"?-1:1);ui.sort=el.dataset.sort;return render();}
+  const a=el.dataset.act;
+  if(el.dataset.v&&!a){ui.view=el.dataset.v;if(ui.view!=="targets")ui.host=null;return render();}
+  if(a==="goto"){ui.view=el.dataset.v;return render();}
+  if(a==="open"){ui.view="targets";ui.host=el.dataset.h;scrollTo(0,0);return render();}
+  if(a==="back"){ui.host=null;return render();}
+  if(a==="more"){ui.limit+=500;return render();}
+  if(a==="export")return exportProject();
+  if(a==="reset"&&confirm("Delete all targets, notes and checklists from this browser? Export first if you want a backup.")){S=blank();ui.host=null;save();render();toast("Workspace cleared.");}
+});
+$("#file").addEventListener("change",e=>{const fs=[...e.target.files];e.target.value="";if(fs.length)importFiles(fs,pick);});
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.id==="q"){ui.q=t.value;ui.limit=300;ui._focusQ=1;const y=scrollY;$("#main").innerHTML=V[ui.view]();const q=$("#q");q.focus();q.setSelectionRange(q.value.length,q.value.length);scrollTo(0,y);}
+  else if(t.dataset.n&&ui.host){N(ui.host)[t.dataset.n]=t.value;save();}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.f){ui[t.dataset.f]=t.value;ui.limit=300;render();}
+  else if(t.dataset.s&&ui.host){const n=N(ui.host);if(t.checked)n.done[t.dataset.s]=true;else delete n.done[t.dataset.s];t.closest("label").classList.toggle("done",t.checked);const tg=T(ui.host);$("#cnt").textContent=`(${tg.steps.filter(s=>n.done[s]).length}/${tg.steps.length})`;save();}
+});
+window.addEventListener("error",e=>toast("Unexpected error: "+e.message,1));
+(async()=>{const w=await loadWS();if(w&&Array.isArray(w.raw)){S=Object.assign(blank(),w);analyse();$("#saved").textContent="restored from this browser";}render();})();
+</script>
+</body>
+</html>
