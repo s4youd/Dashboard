@@ -4,23 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KeenDash</title>
-<style>
-:root{--bg:#111214;--el:#17181b;--sf:#1e2024;--bd:#2b2d33;--tx:#e9eaee;--t2:#9ba0aa;--tm:#62666f;--ac:#5b8def;--ah:#77a1f2;--dg:#f0616d}
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--tx);font:13px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:40px 16px}
-#kd{max-width:760px;margin:0 auto}h1{font-size:22px;margin-bottom:4px}.sub{color:var(--t2);margin-bottom:18px}
-.row{display:grid;grid-template-columns:150px 1fr auto 170px;gap:10px;align-items:center;background:var(--el);border:1px solid var(--bd);border-radius:6px;padding:9px 12px;margin-bottom:8px}
-.row span{color:var(--t2);font-size:12px}.row i{font-style:normal;color:var(--tm);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-code{font-family:"JetBrains Mono",Consolas,monospace;font-size:11px;background:var(--sf);padding:0 4px;border-radius:3px}
-button,.b{display:inline-block;background:var(--sf);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:5px 12px;font:inherit;cursor:pointer}
-button:hover,.b:hover{border-color:var(--ac)}button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.p:hover{background:var(--ah)}
-.act{margin:14px 0 10px;display:flex;gap:8px}[hidden]{display:none!important}
-#kd-out{white-space:pre-wrap;font:12px/1.5 "JetBrains Mono",Consolas,monospace;background:var(--el);border:1px solid var(--bd);border-radius:6px;padding:10px 12px;min-height:44px;color:var(--t2)}
-#kd-out.err{color:var(--dg);border-color:var(--dg)}
-#kd-resume{background:var(--el);border:1px solid var(--ac);border-radius:6px;padding:9px 12px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.fine{color:var(--tm);font-size:12px;margin-top:14px}
-@media(max-width:640px){.row{grid-template-columns:1fr}}
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>html,body{background:#111214}</style>
 </head>
 <body>
 <noscript>KeenDash needs JavaScript.</noscript>
@@ -1242,8 +1230,15 @@ button:hover,.b:hover{border-color:var(--ac)}button.p{background:var(--ac);borde
     return { targets: E.buildTargets(entries), state: {}, isState: false };
   }
 
-  /* ---- main(): purge, enrich, ip map, state normalisation ---- */
-  function prepare(mainText, katanaText, nucleiText) {
+  /* ---- main(): purge, ip map, state normalisation ---- */
+  const LIST_KEYS = ["hidden", "purged", "testing"], BOOL_KEYS = ["testingSidebarCollapsed"];
+  const STATE_KEYS = ["hidden", "purged", "testing", "notes", "activeNote", "openFolders", "checklist", "customSteps", "hiddenSteps", "pretestingAnswers", "ptOpenSections", "openQuestions", "sidebarWidths", "sidebarCollapsed", "sidebarActiveTab", "testingSidebarCollapsed"];
+  function normalizeState(st) { // exactly main()'s state clean-up; mutates and returns st
+    if ("deleted" in st && !("hidden" in st)) { st.hidden = st.deleted; delete st.deleted; } else delete st.deleted;
+    for (const k of STATE_KEYS) if (!(k in st)) st[k] = LIST_KEYS.includes(k) ? [] : BOOL_KEYS.includes(k) ? false : {};
+    return st;
+  }
+  function prepare(mainText) {
     const notes = [];
     let { targets, state, isState } = loadData(mainText, notes);
     if (!targets.length) throw new Error("No data found. Expected HTTPX JSON/JSONL or a KeenDash state file.");
@@ -1254,32 +1249,58 @@ button:hover,.b:hover{border-color:var(--ac)}button.p{background:var(--ac);borde
         if (before - targets.length) notes.push(`Dropped ${before - targets.length} permanently-deleted host(s) from resumed data`);
       }
     }
-    let kmap = {}, nmap = {};
-    if (katanaText) {
-      const p = E.parseKatana(katanaText); kmap = p.map;
-      notes.push(`Katana: ${Object.values(kmap).reduce((a, v) => a + v.urls.size, 0)} URLs across ${Object.keys(kmap).length} hosts` + (p.report.skipped.length ? ` (${p.report.skipped.length} records skipped)` : ""));
-    }
-    if (nucleiText) {
-      const p = E.parseNuclei(nucleiText); nmap = p.map;
-      notes.push(`Nuclei: ${Object.values(nmap).reduce((a, v) => a + v.length, 0)} findings across ${Object.keys(nmap).length} hosts` + (p.report.skipped.length ? ` (${p.report.skipped.length} records skipped)` : ""));
-    }
-    if (Object.keys(kmap).length || Object.keys(nmap).length) {
-      targets = E.enrichWithRecon(targets, kmap, nmap);
-      targets.sort((a, b) => b.score - a.score);
-      notes.push("Recon data merged - scores and vulnerabilities updated");
-    }
     const ipMap = E.buildIpMap(targets);
     notes.push(`Built ${targets.length} unique targets, ${ipMap.length} IPs`);
-    // state normalisation exactly as main(); generate_html receives `saved_state or {}`
-    let st = {};
-    if (truthy(state)) {
-      st = state;
-      if ("deleted" in st && !("hidden" in st)) { st.hidden = st.deleted; delete st.deleted; } else delete st.deleted;
-      const lists = ["hidden", "purged", "testing"], bools = ["testingSidebarCollapsed"];
-      for (const k of ["hidden", "purged", "testing", "notes", "activeNote", "openFolders", "checklist", "customSteps", "hiddenSteps", "pretestingAnswers", "ptOpenSections", "openQuestions", "sidebarWidths", "sidebarCollapsed", "sidebarActiveTab", "testingSidebarCollapsed"])
-        if (!(k in st)) st[k] = lists.includes(k) ? [] : bools.includes(k) ? false : {};
+    // generate_html receives `saved_state or {}`: only a non-empty state gets normalised
+    return { targets, ipMap, state: truthy(state) ? normalizeState(state) : {}, notes };
+  }
+
+  /* ---- custom targets: same object the dashboard's "Add Target" modal / loadState() builds ----
+   * We only hand the dashboard {host, url} in state.custom (+ state.testing); the dashboard's own
+   * code then creates the target, so it is identical to adding it by hand. */
+  const HOST_RE = /^[a-z0-9_](?:[a-z0-9_.-]*[a-z0-9_])?(?::\d{1,5})?$/, V6_RE = /^\[[0-9a-f:.]+\](?::\d{1,5})?$/;
+  function cleanCustom(tok) {
+    let s = tok.trim(), url = null;
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) {
+      if (!/^https?:\/\//i.test(s)) return { error: "only http(s) URLs or plain domains are supported" };
+      url = s; s = s.slice(s.indexOf("://") + 3);
     }
-    return { targets, ipMap, state: st, notes };
+    s = s.split(/[\/?#]/)[0];
+    if (s.includes("@")) s = s.split("@").pop();
+    let wild = false;
+    if (s.startsWith("*.")) { s = s.slice(2); wild = true; }
+    s = s.toLowerCase().replace(/\.+$/, "");
+    if (!s || !(HOST_RE.test(s) || V6_RE.test(s))) return { error: "not a valid domain / host" };
+    const port = (s.match(/:(\d{1,5})$/) || [])[1];
+    if (port && +port > 65535) return { error: "port out of range" };
+    return { host: s, url: url || "https://" + s, wild };
+  }
+  // text: one entry per line (blank lines and #comments ignored); commas/semicolons also separate entries; an entry containing spaces is rejected
+  function parseCustom(text) {
+    const out = { items: [], skipped: [], wildcards: 0 };
+    text.split(/\r?\n/).forEach((line, i) => {
+      line = line.replace(/(^|\s)#.*$/, "").trim();
+      if (!line) return;
+      for (const tok of line.split(/[,;]+/).map((x) => x.trim()).filter(Boolean)) {
+        const r = cleanCustom(tok);
+        if (r.error) out.skipped.push({ where: "line " + (i + 1), reason: `"${tok.length > 60 ? tok.slice(0, 60) + "..." : tok}": ${r.error}` });
+        else { if (r.wild) out.wildcards++; out.items.push({ host: r.host, url: r.url }); }
+      }
+    });
+    return out;
+  }
+  // Merge queued custom targets into the prepared data the way the Add Target modal would.
+  function withCustom(prep, custom) {
+    if (!custom.length) return prep;
+    const st = normalizeState(truthy(prep.state) ? prep.state : {});
+    const haveT = new Set(prep.targets.map((t) => t.host)), haveC = new Set((st.custom || []).map((c) => c.host));
+    const hosts = new Set(custom.map((c) => c.host));
+    st.custom = (st.custom || []).slice();
+    for (const c of custom) if (!haveT.has(c.host) && !haveC.has(c.host)) { st.custom.push({ host: c.host, url: c.url }); haveC.add(c.host); }
+    st.testing = st.testing.slice(); for (const c of custom) if (!st.testing.includes(c.host)) st.testing.push(c.host);   // modal: addToTesting()
+    st.purged = st.purged.filter((h) => !hosts.has(h));  // re-adding a deleted host brings it back
+    st.hidden = st.hidden.filter((h) => !hosts.has(h));
+    return { targets: prep.targets, ipMap: prep.ipMap, state: st, notes: prep.notes };
   }
 
   // vuln/IP rows land inside `...` template literals in the dashboard script
@@ -1362,41 +1383,131 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
     });
   }
 
-  /* ---- launcher UI ---- */
-  const files = { main: null, katana: null, nuclei: null };
-  let prepared = null;
+  /* ---- import screen: built from the dashboard's own CSS / components ---- */
+  let json = null /* {file, prep, notes} */, custom = [], customLogs = [] /* last few action reports */, busy = false;
+  const logBlock = (lines) => { customLogs.push(lines); if (customLogs.length > 3) customLogs.shift(); };
   const readText = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error || new Error("read failed")); r.readAsText(f); });
-  function show(msg, err) { const o = $("kd-out"); o.className = err ? "err" : ""; o.textContent = msg; $("kd-open").hidden = err || !prepared; }
-  function setFile(kind, f) { files[kind] = f || null; $("kd-n-" + kind).textContent = f ? f.name + " (" + Math.round(f.size / 1024) + " KB)" : "none"; prepared = null; $("kd-open").hidden = true; }
-  async function analyze() {
-    prepared = null;
-    if (!files.main) return show("Choose an HTTPX file (JSON or JSONL) or a KeenDash state file first.", true);
+  let toastT = null;
+  function toast(msg) { const t = $("kd-toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2400); }
+  function render() {
+    $("kd-json-name").textContent = json ? `${json.file.name} (${Math.max(1, Math.round(json.file.size / 1024))} KB)` : "No file chosen";
+    $("kd-json-x").hidden = !json;
+    const msgs = (json ? json.notes : []).concat(...customLogs);
+    const bad = json && json.error;
+    $("kd-msg").textContent = bad ? json.error : msgs.join("\n");
+    $("kd-msg").className = bad ? "kd-err" : ""; $("kd-msg").hidden = !($("kd-msg").textContent);
+    $("kd-qh").hidden = !custom.length; $("kd-q").hidden = !custom.length;
+    $("kd-qn").textContent = custom.length;
+    $("kd-q").innerHTML = custom.slice(0, 200).map((c, i) => `<div class="kd-qi"><span>${escH(c.host)}</span>${c.url !== "https://" + c.host ? `<em>${escH(c.url)}</em>` : ""}<button class="kd-x" data-i="${i}" title="Remove">&times;</button></div>`).join("") + (custom.length > 200 ? `<div class="kd-qi kd-dim">+${custom.length - 200} more</div>` : "");
+    $("kd-open").disabled = busy || !((json && json.prep) || custom.length);
+  }
+  async function chooseJson(f) {
+    if (!f) return;
+    json = { file: f, prep: null, notes: [], error: "" }; render();
     try {
-      const [m, k, n] = await Promise.all([readText(files.main), files.katana ? readText(files.katana) : "", files.nuclei ? readText(files.nuclei) : ""]);
-      if (!m.trim()) return show(files.main.name + " is empty.", true);
-      const p = prepare(m, k, n); prepared = { prep: p, name: files.main.name };
-      show(p.notes.join("\n") + "\n\nReady. Open the dashboard to start.", false);
-    } catch (e) { prepared = null; show(e.message, true); }
+      const m = await readText(f);
+      if (!m.trim()) json.error = `${f.name} is empty.`;
+      else { const p = prepare(m); json.prep = p; json.notes = p.notes; }
+    } catch (e) { json.error = e.message; }
+    render();
+  }
+  function addCustom(text, label, url) {
+    const r = parseCustom(text), have = new Set(custom.map((c) => c.host)), inData = new Set(json && json.prep ? json.prep.targets.map((t) => t.host) : []);
+    let added = 0, dup = 0, inScan = 0;
+    for (const it of r.items) {
+      if (have.has(it.host)) { dup++; continue; }
+      have.add(it.host); if (url && r.items.length === 1) it.url = url;
+      custom.push(it); added++; if (inData.has(it.host)) inScan++;
+    }
+    const lines = [`${label}: ${added} custom target${added === 1 ? "" : "s"} added` + (dup ? `, ${dup} duplicate${dup === 1 ? "" : "s"} ignored` : "") + (r.skipped.length ? `, ${r.skipped.length} skipped` : "")];
+    if (inScan) lines.push(`  ${inScan} already in the scan data (kept as scan target, still added to Testing)`);
+    if (r.wildcards) lines.push(`  ${r.wildcards} leading "*." removed`);
+    r.skipped.slice(0, 10).forEach((k) => lines.push(`  skipped ${k.where}: ${k.reason}`));
+    if (r.skipped.length > 10) lines.push(`  ... and ${r.skipped.length - 10} more skipped`);
+    if (!r.items.length && !r.skipped.length) lines[0] = `${label}: no domains found`;
+    logBlock(lines); render();
+    return { added, bad: r.skipped.length, empty: !r.items.length, items: r.items.length };
+  }
+  function addTyped() {
+    const host = $("kd-host").value, url = $("kd-url").value.trim();
+    if (!host.trim()) return;
+    if (url && !/^https?:\/\/\S+$/i.test(url)) { logBlock(["The optional URL must start with http:// or https://"]); render(); return; }
+    const r = addCustom(host, "Typed", url);
+    if (url && r.items > 1) customLogs[customLogs.length - 1].push("  (the URL was ignored: it only applies when adding a single target)");
+    if (r.added || !r.bad) { $("kd-host").value = ""; $("kd-url").value = ""; if (r.added) toast(`Added ${r.added} target${r.added === 1 ? "" : "s"}`); }
+    render(); $("kd-host").focus();
+  }
+  async function chooseTxt(f) {
+    if (!f) return;
+    try { const t = await readText(f); if (!t.trim()) { logBlock([`${f.name} is empty.`]); render(); return; } const r = addCustom(t, f.name); if (r.added) toast(`Added ${r.added} target${r.added === 1 ? "" : "s"}`); }
+    catch (e) { logBlock([`${f.name}: could not read file (${e.message})`]); render(); }
+  }
+  function openNow() {
+    const base = json && json.prep ? json.prep : { targets: [], ipMap: [], state: {}, notes: [] };
+    openDashboard(withCustom(base, custom), json && json.prep ? json.file.name : "custom-targets.json");
   }
   async function init() {
-    document.body.innerHTML = `<div id="kd"><h1>KeenDash</h1><p class="sub">Bug bounty prioritization dashboard. Everything runs in this browser tab. Your scan data is never uploaded.</p>
-<div id="kd-resume" hidden></div>
-<div class="row"><b>1. Scan file</b><span>HTTPX JSON / JSONL, a KeenDash <code>.json</code> state file, or an old dashboard <code>.html</code></span><label class="b">Choose file<input type="file" id="kd-f-main" hidden></label><i id="kd-n-main">none</i></div>
-<div class="row"><b>2. Katana (optional)</b><span>Crawl JSONL, like <code>-k</code></span><label class="b">Choose file<input type="file" id="kd-f-katana" hidden></label><i id="kd-n-katana">none</i></div>
-<div class="row"><b>3. Nuclei (optional)</b><span>Findings JSONL, like <code>-n</code></span><label class="b">Choose file<input type="file" id="kd-f-nuclei" hidden></label><i id="kd-n-nuclei">none</i></div>
-<div class="act"><button id="kd-go" class="p">Analyze</button><button id="kd-open" class="p" hidden>Open dashboard</button></div>
-<pre id="kd-out"></pre>
-<p class="fine">Autosave works as in the original: inside the dashboard click <b>Link &lt;name&gt;.json</b> once (Chrome/Edge), or use Save to download. This page also keeps a copy of your last session in this browser only, so a refresh does not lose work. To continue a project later, load its saved <code>.json</code> here.</p></div>`;
-    for (const k of ["main", "katana", "nuclei"]) $("kd-f-" + k).onchange = (e) => { setFile(k, e.target.files[0]); e.target.value = ""; if (k === "main" && files.main) analyze(); };
-    $("kd-go").onclick = analyze;
-    $("kd-open").onclick = () => { if (prepared) openDashboard(prepared.prep, prepared.name); };
+    const css = (TPL.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || "";        // the dashboard's own stylesheet
+    const st = document.createElement("style"); st.textContent = css + `
+.mod.kd{width:560px;max-height:92vh;overflow:auto}.mod.kd h3{display:flex;align-items:center}
+.mod textarea{width:100%;background:var(--bg-root);border:1px solid var(--border);color:var(--text-primary);padding:8px 10px;border-radius:var(--radius);font-size:13px;margin-bottom:10px;outline:none;font-family:inherit;resize:vertical}
+.mod textarea:focus{border-color:var(--accent)}
+.kd-sec{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 8px;padding-top:12px;border-top:1px solid var(--border-light)}.kd-sec:first-of-type{border-top:0;padding-top:0;margin-top:4px}
+.kd-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.kd-dim{color:var(--text-muted)}
+#kd-json-name{font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
+.kd-hint{font-size:12px!important;color:var(--text-muted)!important;margin:0 0 4px!important}
+#kd-q{max-height:150px;overflow:auto;background:var(--bg-root);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
+.kd-qi{display:flex;gap:8px;align-items:center;padding:4px 10px;border-bottom:1px solid var(--border-light);font-family:var(--font-mono);font-size:12px}.kd-qi:last-child{border-bottom:0}
+.kd-qi span{flex:0 1 auto}.kd-qi em{font-style:normal;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kd-qi .kd-x{margin-left:auto;background:none;border:0;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1}.kd-qi .kd-x:hover{color:var(--danger)}
+#kd-qh{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-secondary);margin-bottom:6px}
+#kd-msg{white-space:pre-wrap;font:11.5px/1.55 var(--font-mono);background:var(--bg-root);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;margin:0 0 12px;color:var(--text-secondary);max-height:170px;overflow:auto}
+#kd-msg.kd-err{color:var(--danger);border-color:var(--danger)}
+#kd-resume{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);background:var(--accent-subtle);border:1px solid var(--accent);border-radius:var(--radius);padding:8px 10px;margin-bottom:4px}
+#kd-resume b{color:var(--text-primary)}#kd-resume .btn-action{margin-left:auto}
+.btn-action:disabled{opacity:.4;cursor:not-allowed}.btn-action:disabled:hover{color:var(--text-secondary);border-color:var(--border);background:transparent}.btn-action.primary:disabled:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.kd-foot{font-size:11px!important;color:var(--text-muted)!important;margin:12px 0 0!important}
+[hidden]{display:none!important}`;
+    document.head.appendChild(st);
+    document.body.innerHTML = `<header class="top-bar"><div class="brand"><img src="https://avatars.githubusercontent.com/u/212823433?s=400&u=cf6999ae50fc524333b6a06c13c15809017e1281&v=4" alt="KeenDash Logo" style="width:56px;height:56px;border-radius:9px;object-fit:cover;">KeenDash</div></header>
+<main class="viewport"></main>
+<div id="kd-bg" class="mod-bg open"><div class="mod kd">
+ <h3><i class="ph ph-download-simple" style="margin-right:8px"></i>Import Targets</h3>
+ <div id="kd-resume" hidden></div>
+ <div class="kd-sec">Scan results</div>
+ <div class="kd-row"><button class="btn-action" id="kd-pick-json"><i class="ph ph-file-code"></i>Choose JSON file</button><span id="kd-json-name" class="kd-dim">No file chosen</span><button class="kd-x btn-action" id="kd-json-x" hidden title="Remove">&times;</button></div>
+ <p class="kd-hint">HTTPX JSON / JSONL, a KeenDash <b>.json</b> state file, or a saved dashboard <b>.html</b></p>
+ <div class="kd-sec">Custom targets</div>
+ <textarea id="kd-host" rows="2" placeholder="subdomain.example.com  (one per line, or paste several)"></textarea>
+ <input id="kd-url" placeholder="https://... (optional)">
+ <div class="kd-row"><button class="btn-action" id="kd-add"><i class="ph ph-plus-circle"></i>Add target</button><button class="btn-action" id="kd-pick-txt"><i class="ph ph-file-text"></i>Import .txt file</button><span class="kd-dim" style="font-size:12px">one domain per line</span></div>
+ <div id="kd-qh" hidden><span>Custom targets (<span id="kd-qn">0</span>)</span><button class="btn-action" id="kd-clear" style="height:24px">Clear</button></div>
+ <div id="kd-q" hidden></div>
+ <pre id="kd-msg" hidden></pre>
+ <div class="mod-acts"><button class="btn-action primary" id="kd-open" disabled><i class="ph ph-arrow-right"></i>Open Dashboard</button></div>
+ <p class="kd-foot">Runs entirely in this browser. Your data is never uploaded. Custom targets are added to Testing, like <b>Add Target</b> in the dashboard.</p>
+ <input type="file" id="kd-f-json" accept=".json,.jsonl,.html,.htm,.txt" hidden><input type="file" id="kd-f-txt" accept=".txt,.list,text/plain" hidden>
+</div></div><div id="kd-toast" class="toast"></div>`;
+    $("kd-pick-json").onclick = () => $("kd-f-json").click();
+    $("kd-pick-txt").onclick = () => $("kd-f-txt").click();
+    $("kd-f-json").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; chooseJson(f); };
+    $("kd-f-txt").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; chooseTxt(f); };
+    $("kd-json-x").onclick = () => { json = null; render(); };
+    $("kd-add").onclick = addTyped;
+    $("kd-host").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addTyped(); } });
+    $("kd-url").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTyped(); } });
+    $("kd-clear").onclick = () => { custom = []; customLogs = []; render(); };
+    $("kd-q").onclick = (e) => { const b = e.target.closest("[data-i]"); if (b) { custom.splice(+b.dataset.i, 1); render(); } };
+    $("kd-open").onclick = () => { if (!$("kd-open").disabled) { busy = true; render(); openNow(); } };
     document.addEventListener("dragover", (e) => e.preventDefault());
-    document.addEventListener("drop", (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { setFile("main", f); analyze(); } });
+    document.addEventListener("drop", (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (!f) return; (/\.(txt|list)$/i.test(f.name) ? chooseTxt : chooseJson)(f); });
+    render(); $("kd-host").focus();
     const s = await idbGet();
     if (s && s.data && Array.isArray(s.data.targets) && s.data.targets.length) {
       const r = $("kd-resume"); r.hidden = false;
-      r.innerHTML = `<b>Last session:</b> ${escH(s.name)}, ${s.data.targets.length} targets, saved ${escH(new Date(s.at).toLocaleString())} <button id="kd-res" class="p">Resume</button> <button id="kd-forget">Forget</button>`;
-      $("kd-res").onclick = () => { try { openDashboard(prepare(JSON.stringify(s.data), "", ""), s.name); } catch (e) { show("Could not resume: " + e.message, true); } };
+      r.innerHTML = `<i class="ph ph-clock-counter-clockwise"></i><span><b>Last session:</b> ${escH(s.name)}, ${s.data.targets.length} targets, ${escH(new Date(s.at).toLocaleString())}</span><button class="btn-action primary" id="kd-res">Resume</button><button class="btn-action" id="kd-forget">Forget</button>`;
+      r.querySelector(".btn-action:last-child").style.marginLeft = "0";
+      $("kd-res").onclick = () => { try { openDashboard(prepare(JSON.stringify(s.data)), s.name); } catch (e) { json = { file: { name: s.name, size: 0 }, prep: null, notes: [], error: "Could not resume: " + e.message }; render(); } };
       $("kd-forget").onclick = async () => { await idbDel(); r.hidden = true; };
     }
   }
